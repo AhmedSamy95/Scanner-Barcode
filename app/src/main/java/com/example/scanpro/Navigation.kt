@@ -119,10 +119,10 @@ fun MainNavigation() {
                         generatorInitialValue = rawValue
                         navController.navigate(Screen.Generator.route) {
                             popUpTo(navController.graph.findStartDestination().id) {
-                                saveState = false
+                                saveState = true
                             }
                             launchSingleTop = true
-                            restoreState = false
+                            restoreState = true
                         }
                     }
                 )
