@@ -12,6 +12,7 @@ import androidx.compose.material.icons.filled.FlashOn
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Launch
 import androidx.compose.material.icons.filled.QrCode
+import androidx.compose.material.icons.filled.QrCodeScanner
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
@@ -113,6 +114,31 @@ fun ScannerScreen(
                         inactiveTrackColor = Color.White.copy(alpha = 0.3f)
                     )
                 )
+            }
+
+            // Paused overlay — scanning stopped after a capture, awaiting "Scan Again"
+            if (uiState.isScanningPaused && !uiState.showBottomSheet) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(Color.Black.copy(alpha = 0.55f)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Text(
+                            text = "Scanning paused",
+                            color = Color.White,
+                            fontSize = 18.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                        Spacer(modifier = Modifier.height(16.dp))
+                        Button(onClick = { viewModel.resumeScanning() }) {
+                            Icon(Icons.Default.QrCodeScanner, contentDescription = null)
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text("Scan Again")
+                        }
+                    }
+                }
             }
         } else {
             // Permission missing / denied screen

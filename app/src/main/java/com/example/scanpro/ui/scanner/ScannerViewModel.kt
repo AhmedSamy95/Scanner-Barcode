@@ -31,6 +31,7 @@ data class ScannerUiState(
     val maxZoom: Float = 5f,
     val lastScannedBarcode: BarcodeItem? = null,
     val showBottomSheet: Boolean = false,
+    val isScanningPaused: Boolean = false,
     val continuousScan: Boolean = false,
     val soundFeedback: Boolean = true,
     val vibrationFeedback: Boolean = true,
@@ -96,6 +97,9 @@ class ScannerViewModel @Inject constructor(
     }
 
     fun onBarcodesDetected(barcodes: List<Barcode>) {
+        // Ignore incoming frames while scanning is paused (detail being shown)
+        if (uiState.value.isScanningPaused) return
+
         val barcode = barcodes.firstOrNull() ?: return
         val rawValue = barcode.rawValue ?: return
         val displayValue = barcode.displayValue ?: rawValue
@@ -136,7 +140,9 @@ class ScannerViewModel @Inject constructor(
                 _uiState.update {
                     it.copy(
                         lastScannedBarcode = finalItem,
-                        showBottomSheet = true
+                        showBottomSheet = true,
+                        isScanningPaused = true,
+                        continuousScan = false
                     )
                 }
             } else {
@@ -150,7 +156,18 @@ class ScannerViewModel @Inject constructor(
     }
 
     fun dismissBottomSheet() {
+        // Hide the sheet but keep scanning paused — user must tap "Scan Again" to resume
         _uiState.update { it.copy(showBottomSheet = false) }
+    }
+
+    fun resumeScanning() {
+        _uiState.update {
+            it.copy(
+                showBottomSheet = false,
+                isScanningPaused = false,
+                lastScannedBarcode = null
+            )
+        }
         lastScanValue = "" // Reset to allow scanning the same item again
     }
 
