@@ -95,36 +95,28 @@ class HistoryViewModel @Inject constructor(
         }
     }
 
-    fun exportToCsv(): String? {
-        var csvContent: String? = null
+    suspend fun exportToCsv(): String? {
         _isLoading.value = true
-        viewModelScope.launch {
-            try {
-                csvContent = exportHistoryUseCase.exportCsv()
-                _feedbackMessage.value = "CSV exported successfully!"
-            } catch (e: Exception) {
-                _feedbackMessage.value = "Export failed: ${e.localizedMessage}"
-            } finally {
-                _isLoading.value = false
-            }
+        return try {
+            exportHistoryUseCase.exportCsv()
+        } catch (e: Exception) {
+            _feedbackMessage.value = "Export failed: ${e.localizedMessage}"
+            null
+        } finally {
+            _isLoading.value = false
         }
-        return csvContent
     }
 
-    fun exportToJson(): String? {
-        var jsonContent: String? = null
+    suspend fun exportToJson(): String? {
         _isLoading.value = true
-        viewModelScope.launch {
-            try {
-                jsonContent = exportHistoryUseCase.exportJson()
-                _feedbackMessage.value = "JSON exported successfully!"
-            } catch (e: Exception) {
-                _feedbackMessage.value = "Export failed: ${e.localizedMessage}"
-            } finally {
-                _isLoading.value = false
-            }
+        return try {
+            exportHistoryUseCase.exportJson()
+        } catch (e: Exception) {
+            _feedbackMessage.value = "Export failed: ${e.localizedMessage}"
+            null
+        } finally {
+            _isLoading.value = false
         }
-        return jsonContent
     }
 
     fun importCsv(content: String) {

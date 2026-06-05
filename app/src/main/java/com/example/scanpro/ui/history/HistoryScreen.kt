@@ -78,9 +78,13 @@ fun HistoryScreen(
         contract = ActivityResultContracts.CreateDocument("text/csv")
     ) { uri: Uri? ->
         if (uri != null) {
-            val content = viewModel.exportToCsv()
-            if (content != null) {
-                writeTextToUri(context, uri, content, coroutineScope, snackbarHostState)
+            coroutineScope.launch {
+                val content = viewModel.exportToCsv()
+                if (content != null) {
+                    writeTextToUri(context, uri, content, coroutineScope, snackbarHostState)
+                } else {
+                    snackbarHostState.showSnackbar("Failed to generate CSV export.")
+                }
             }
         }
     }
@@ -89,9 +93,13 @@ fun HistoryScreen(
         contract = ActivityResultContracts.CreateDocument("application/json")
     ) { uri: Uri? ->
         if (uri != null) {
-            val content = viewModel.exportToJson()
-            if (content != null) {
-                writeTextToUri(context, uri, content, coroutineScope, snackbarHostState)
+            coroutineScope.launch {
+                val content = viewModel.exportToJson()
+                if (content != null) {
+                    writeTextToUri(context, uri, content, coroutineScope, snackbarHostState)
+                } else {
+                    snackbarHostState.showSnackbar("Failed to generate JSON export.")
+                }
             }
         }
     }
