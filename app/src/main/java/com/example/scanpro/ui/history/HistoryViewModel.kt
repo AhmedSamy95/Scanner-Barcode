@@ -47,11 +47,14 @@ class HistoryViewModel @Inject constructor(
             val matchSearch = item.rawValue.contains(search, ignoreCase = true) ||
                     item.displayValue.contains(search, ignoreCase = true) ||
                     item.format.displayName.contains(search, ignoreCase = true)
-            
+
             val matchFav = !favOnly || item.isFavorite
-            
+
             matchSearch && matchFav
-        }
+        }.sortedWith(
+            compareByDescending<BarcodeItem> { it.isFavorite }
+                .thenByDescending { it.timestamp }
+        )
 
         HistoryUiState(
             barcodes = filteredList,
