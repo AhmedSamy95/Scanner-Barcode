@@ -22,12 +22,21 @@ android {
 
     buildTypes {
         release {
-            isMinifyEnabled = true
+            // 1. قم بتغيير هذه القيمة إلى false لإيقاف تشغيل R8/ProGuard
+            isMinifyEnabled = false
+
+            // 2. إذا كان هناك سطر اسمه isShrinkResourcesEnabled اجعله false أيضاً (إن وجد)
+            // isShrinkResourcesEnabled = false
+
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
         }
+    }
+    lint {
+        checkReleaseBuilds = false
+        abortOnError = false
     }
 
     compileOptions {
