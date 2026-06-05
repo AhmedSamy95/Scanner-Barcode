@@ -11,9 +11,11 @@
 
 ## 📸 App Preview & Interface
 
-| ⚡ Advanced Settings Panel | 🛠️ Dynamic Barcode Generator |
+| 📷 Scanner Dashboard | 📊 History & Analytics |
 |:---:|:---:|
-| <img src="screenshots/Seting_screen.jpg" width="290" alt="Advanced Settings"/> | <img src="screenshots/Generat_screen.jpg" width="290" alt="Barcode Generator"/> |
+| <img src="screenshots/scan_screen.png" width="280" alt="Scanner Dashboard"/> | <img src="screenshots/history_screen.png" width="280" alt="History & Logs"/> |
+| **🛠️ Dynamic Barcode Generator** | **⚙️ Advanced Settings Panel** |
+| <img src="screenshots/Generat_screen.jpg" width="280" alt="Barcode Generator"/> | <img src="screenshots/Seting_screen.jpg" width="280" alt="Advanced Settings"/> |
 
 ---
 
