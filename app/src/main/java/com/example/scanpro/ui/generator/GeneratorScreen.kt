@@ -33,6 +33,7 @@ import com.example.scanpro.theme.FavoriteColor
 fun GeneratorScreen(
     viewModel: GeneratorViewModel,
     initialValue: String? = null,
+    autoGenerate: Boolean = false,
     onInitialValueConsumed: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
@@ -40,10 +41,13 @@ fun GeneratorScreen(
     var expandedDropdown by remember { mutableStateOf(false) }
     val scrollState = rememberScrollState()
 
-    // Set initial value from scanner if provided
+    // Set initial value and optionally auto-generate
     LaunchedEffect(initialValue) {
         if (!initialValue.isNullOrBlank()) {
             viewModel.onInputTextChanged(initialValue)
+            if (autoGenerate) {
+                viewModel.generateBarcode()
+            }
             onInitialValueConsumed()
         }
     }

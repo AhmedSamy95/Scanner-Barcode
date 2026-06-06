@@ -115,6 +115,7 @@ class DetailViewModel @Inject constructor(
 @Composable
 fun DetailScreen(
     onBack: () -> Unit,
+    onNavigateToGenerator: (String) -> Unit = {},
     viewModel: DetailViewModel = hiltViewModel(),
     modifier: Modifier = Modifier
 ) {
@@ -254,6 +255,16 @@ fun DetailScreen(
                                         Icon(Icons.Default.Share, contentDescription = "Share")
                                     }
                                     Text("Share", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                }
+
+                                // Generate barcode
+                                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                    IconButton(
+                                        onClick = { onNavigateToGenerator(barcode.rawValue) }
+                                    ) {
+                                        Icon(Icons.Default.QrCode, contentDescription = "Generate barcode")
+                                    }
+                                    Text("Generate", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                                 }
 
                                 // Custom URL action

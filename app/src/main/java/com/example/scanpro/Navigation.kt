@@ -52,6 +52,7 @@ fun MainNavigation() {
     val currentRoute = navBackStackEntry?.destination?.route
 
     var generatorInitialValue by remember { mutableStateOf<String?>(null) }
+    var generatorAutoGenerate by remember { mutableStateOf(false) }
 
     val bottomNavItems = listOf(
         Screen.Scanner,
@@ -133,7 +134,11 @@ fun MainNavigation() {
                 GeneratorScreen(
                     viewModel = viewModel,
                     initialValue = generatorInitialValue,
-                    onInitialValueConsumed = { generatorInitialValue = null }
+                    autoGenerate = generatorAutoGenerate,
+                    onInitialValueConsumed = {
+                        generatorInitialValue = null
+                        generatorAutoGenerate = false
+                    }
                 )
             }
 
@@ -161,7 +166,19 @@ fun MainNavigation() {
                 val viewModel: DetailViewModel = hiltViewModel()
                 DetailScreen(
                     viewModel = viewModel,
-                    onBack = { navController.popBackStack() }
+                    onBack = { navController.popBackStack() },
+                    onNavigateToGenerator = { rawValue ->
+                        generatorInitialValue = rawValue
+                        generatorAutoGenerate = true
+                        navController.popBackStack()
+                        navController.navigate(Screen.Generator.route) {
+                            popUpTo(navController.graph.findStartDestination().id) {
+                                saveState = true
+                            }
+                            launchSingleTop = true
+                            restoreState = false
+                        }
+                    }
                 )
             }
         }
