@@ -19,7 +19,11 @@ import com.example.scanpro.theme.PrimaryAccent
  * neon cyan corner brackets, and a sweeping horizontal scanner line.
  */
 @Composable
-fun ViewfinderOverlay(modifier: Modifier = Modifier) {
+fun ViewfinderOverlay(
+    modifier: Modifier = Modifier,
+    rectScaleWidth: Float = 0.7f,
+    rectScaleHeight: Float = 0.35f
+) {
     val infiniteTransition = rememberInfiniteTransition(label = "scanLine")
     val scanLineProgress by infiniteTransition.animateFloat(
         initialValue = 0f,
@@ -35,9 +39,9 @@ fun ViewfinderOverlay(modifier: Modifier = Modifier) {
         val canvasWidth = size.width
         val canvasHeight = size.height
         
-        // Define bounding scanning box (70% width, 35% height)
-        val rectWidth = canvasWidth * 0.7f
-        val rectHeight = canvasHeight * 0.35f
+        // Define bounding scanning box based on scales
+        val rectWidth = canvasWidth * rectScaleWidth
+        val rectHeight = canvasHeight * rectScaleHeight
         val left = (canvasWidth - rectWidth) / 2
         val top = (canvasHeight - rectHeight) / 2
         val right = left + rectWidth

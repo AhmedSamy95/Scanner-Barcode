@@ -6,10 +6,12 @@ import android.content.ClipboardManager
 import android.content.Context
 import android.media.AudioManager
 import android.media.ToneGenerator
+import android.net.Uri
 import android.os.Build
 import android.os.VibrationEffect
 import android.os.Vibrator
 import android.os.VibratorManager
+import androidx.camera.core.Camera
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.scanpro.domain.model.BarcodeContentType
@@ -17,8 +19,10 @@ import com.example.scanpro.domain.model.BarcodeFormatType
 import com.example.scanpro.domain.model.BarcodeItem
 import com.example.scanpro.domain.repository.BarcodeRepository
 import com.example.scanpro.domain.usecase.ScanBarcodeUseCase
+import com.google.mlkit.vision.barcode.BarcodeScanner
 import com.google.mlkit.vision.barcode.common.Barcode
-import androidx.camera.core.Camera
+import com.google.mlkit.vision.common.InputImage
+import com.google.mlkit.vision.text.TextRecognizer
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
@@ -35,8 +39,18 @@ data class ScannerUiState(
     val continuousScan: Boolean = false,
     val soundFeedback: Boolean = true,
     val vibrationFeedback: Boolean = true,
-    val autoCopyToClipboard: Boolean = false
+    val autoCopyToClipboard: Boolean = false,
+    val scanMode: ScanMode = ScanMode.BARCODE,
+    val detectedText: String = "",
+    val isGalleryProcessing: Boolean = false,
+    val ocrFrameSize: Float = 0.5f,
+    val multiScanResults: List<BarcodeItem> = emptyList(),
+    val showMultiScanPicker: Boolean = false
 )
+
+enum class ScanMode {
+    BARCODE, OCR
+}
 
 /**
  * ViewModel managing scanning state, camera configurations, and feedback triggers.
@@ -45,6 +59,8 @@ data class ScannerUiState(
 class ScannerViewModel @Inject constructor(
     private val repository: BarcodeRepository,
     private val scanBarcodeUseCase: ScanBarcodeUseCase,
+    val textRecognizer: TextRecognizer,
+    val barcodeScanner: BarcodeScanner,
     private val application: Application
 ) : ViewModel() {
 
@@ -53,6 +69,7 @@ class ScannerViewModel @Inject constructor(
 
     private var lastScanTime = 0L
     private var lastScanValue = ""
+    private var lastOcrUpdateTime = 0L
 
     private val toneGenerator = ToneGenerator(AudioManager.STREAM_NOTIFICATION, 100)
 
@@ -97,8 +114,7 @@ class ScannerViewModel @Inject constructor(
     }
 
     fun onBarcodesDetected(barcodes: List<Barcode>) {
-        // Ignore incoming frames while scanning is paused (detail being shown)
-        if (uiState.value.isScanningPaused) return
+        if (uiState.value.isScanningPaused || uiState.value.scanMode != ScanMode.BARCODE) return
 
         val barcode = barcodes.firstOrNull() ?: return
         val rawValue = barcode.rawValue ?: return
@@ -106,7 +122,6 @@ class ScannerViewModel @Inject constructor(
 
         val currentTime = System.currentTimeMillis()
 
-        // Throttling to prevent spamming identical results
         if (rawValue == lastScanValue && (currentTime - lastScanTime) < 2000) {
             return
         }
@@ -156,7 +171,6 @@ class ScannerViewModel @Inject constructor(
     }
 
     fun dismissBottomSheet() {
-        // Hide the sheet but keep scanning paused — user must tap "Scan Again" to resume
         _uiState.update { it.copy(showBottomSheet = false) }
     }
 
@@ -165,10 +179,126 @@ class ScannerViewModel @Inject constructor(
             it.copy(
                 showBottomSheet = false,
                 isScanningPaused = false,
-                lastScannedBarcode = null
+                lastScannedBarcode = null,
+                detectedText = ""
             )
         }
-        lastScanValue = "" // Reset to allow scanning the same item again
+        lastScanValue = ""
+    }
+
+    fun setScanMode(mode: ScanMode) {
+        _uiState.update { 
+            it.copy(
+                scanMode = mode, 
+                detectedText = "", 
+                isScanningPaused = false,
+                showBottomSheet = false,
+                lastScannedBarcode = null
+            ) 
+        }
+        lastScanValue = ""
+    }
+
+    fun setOcrFrameSize(size: Float) {
+        _uiState.update { it.copy(ocrFrameSize = size.coerceIn(0.2f, 0.9f)) }
+    }
+
+    fun onTextDetected(text: String) {
+        if (uiState.value.isScanningPaused || uiState.value.scanMode != ScanMode.OCR) return
+        if (text.isBlank() || text == uiState.value.detectedText) return
+
+        val currentTime = System.currentTimeMillis()
+        if (currentTime - lastOcrUpdateTime < 400) return
+
+        lastOcrUpdateTime = currentTime
+        _uiState.update { it.copy(detectedText = text) }
+    }
+
+    fun copyDetectedText() {
+        val text = uiState.value.detectedText
+        if (text.isNotEmpty()) {
+            copyToClipboard(text)
+            triggerFeedback()
+        }
+    }
+
+    fun onImageSelected(uri: Uri) {
+        _uiState.update { it.copy(isGalleryProcessing = true) }
+        val image: InputImage
+        try {
+            image = InputImage.fromFilePath(application, uri)
+        } catch (e: Exception) {
+            _uiState.update { it.copy(isGalleryProcessing = false) }
+            return
+        }
+
+        if (uiState.value.scanMode == ScanMode.BARCODE) {
+            barcodeScanner.process(image)
+                .addOnSuccessListener { barcodes ->
+                    _uiState.update { it.copy(isGalleryProcessing = false) }
+                    if (barcodes.isEmpty()) return@addOnSuccessListener
+                    
+                    val items = barcodes.map { barcode ->
+                        val rawValue = barcode.rawValue ?: ""
+                        val format = BarcodeFormatType.fromMlKitFormat(barcode.format)
+                        val contentType = BarcodeContentType.fromRawValue(rawValue)
+                        BarcodeItem(
+                            rawValue = rawValue,
+                            displayValue = barcode.displayValue ?: rawValue,
+                            format = format,
+                            contentType = contentType,
+                            source = "GALLERY"
+                        )
+                    }.filter { it.rawValue.isNotEmpty() }
+
+                    if (items.size == 1) {
+                        handleSingleBarcode(items.first())
+                    } else if (items.size > 1) {
+                        _uiState.update { it.copy(multiScanResults = items, showMultiScanPicker = true) }
+                    }
+                }
+                .addOnFailureListener {
+                    _uiState.update { it.copy(isGalleryProcessing = false) }
+                }
+        } else {
+            textRecognizer.process(image)
+                .addOnSuccessListener { visionText ->
+                    _uiState.update { 
+                        it.copy(
+                            isGalleryProcessing = false,
+                            detectedText = visionText.text
+                        ) 
+                    }
+                    lastOcrUpdateTime = System.currentTimeMillis()
+                }
+                .addOnFailureListener {
+                    _uiState.update { it.copy(isGalleryProcessing = false) }
+                }
+        }
+    }
+
+    private fun handleSingleBarcode(item: BarcodeItem) {
+        viewModelScope.launch {
+            val savedId = scanBarcodeUseCase(item)
+            val finalItem = item.copy(id = savedId)
+            triggerFeedback()
+            _uiState.update {
+                it.copy(
+                    lastScannedBarcode = finalItem,
+                    showBottomSheet = true,
+                    isScanningPaused = true
+                )
+            }
+        }
+    }
+
+    fun onBarcodeSelectedFromList(item: BarcodeItem) {
+        _uiState.update { it.copy(showMultiScanPicker = false, multiScanResults = emptyList()) }
+        handleSingleBarcode(item)
+    }
+
+    fun dismissMultiScanPicker() {
+        _uiState.update { it.copy(showMultiScanPicker = false, multiScanResults = emptyList()) }
     }
 
     private fun triggerFeedback() {
